@@ -1824,7 +1824,7 @@ fetch_files_premerge () {
 				fi
 			done < filelist
 			echo "done."
-			if [ -s incorrect-hashes ]; then
+			if [ -s failed-files ]; then
 				echo "Incorrect hashes or download failures found, retrying"
 				mv failed-files filelist
 			else
@@ -1962,7 +1962,7 @@ fetch_files () {
 				echo "${Y}" >> failed-files
 			fi
 		done < filelist
-		if [ -s incorrect-hashes ]; then
+		if [ -s failed-files ]; then
 			echo "Incorrect hashes or download failures found, retrying"
 			mv failed-files filelist
 		else
