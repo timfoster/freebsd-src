@@ -1812,21 +1812,21 @@ fetch_files_premerge () {
 			# Make sure we got them all, and move them into /files/
 			while read Y; do
 				if ! [ -f ${Y}.gz ]; then
-					echo "failed."
-					return 1
+					echo "${Y}.gz was missing."
+					echo "${Y}" >> failed-files
 				fi
 				if [ `gunzip -c < ${Y}.gz |
 					${SHA256} -q` = ${Y} ]; then
 					mv ${Y}.gz files/${Y}.gz
 				else
 					echo "${Y} has incorrect hash."
-					echo "${Y}" >> incorrect-hashes
+					echo "${Y}" >> failed-files
 				fi
 			done < filelist
 			echo "done."
 			if [ -s incorrect-hashes ]; then
-				echo "Incorrect hashes found, retrying"
-				mv incorrect-hashes filelist
+				echo "Incorrect hashes or download failures found, retrying"
+				mv failed-files filelist
 			else
 				rm filelist
 			fi
@@ -1951,20 +1951,20 @@ fetch_files () {
 
 		while read Y; do
 			if ! [ -f ${Y}.gz ]; then
-				echo "failed."
-				return 1
+				echo "${Y}.gz was missing."
+				echo "${Y}" >> failed-files
 			fi
 			if [ `gunzip -c < ${Y}.gz |
 			    ${SHA256} -q` = ${Y} ]; then
 				mv ${Y}.gz files/${Y}.gz
 			else
 				echo "${Y} has incorrect hash."
-				echo "${Y}" >> incorrect-hashes
+				echo "${Y}" >> failed-files
 			fi
 		done < filelist
 		if [ -s incorrect-hashes ]; then
-			echo "Incorrect hashes found. Retrying"
-			mv incorrect-hashes filelist
+			echo "Incorrect hashes or download failures found, retrying"
+			mv failed-files filelist
 		else
 			rm filelist
 		fi
