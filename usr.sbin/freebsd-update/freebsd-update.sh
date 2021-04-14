@@ -1802,29 +1802,37 @@ fetch_files_premerge () {
 			fi
 		done < files.wanted > filelist
 
-		# Actually fetch them
-		lam -s "${OLDFETCHDIR}/f/" - -s ".gz" < filelist |
-		    xargs ${XARGST} ${PHTTPGET} ${SERVERNAME}	\
-		    2>${QUIETREDIR}
+		# Keep trying until we're done XXX timf: add a MAX_RETRIES option?
+		while [ -s filelist ]; do
+			# Actually fetch them
+			lam -s "${OLDFETCHDIR}/f/" - -s ".gz" < filelist |
+				xargs ${XARGST} ${PHTTPGET} ${SERVERNAME}	\
+				2>${QUIETREDIR}
 
-		# Make sure we got them all, and move them into /files/
-		while read Y; do
-			if ! [ -f ${Y}.gz ]; then
-				echo "failed."
-				return 1
-			fi
-			if [ `gunzip -c < ${Y}.gz |
-			    ${SHA256} -q` = ${Y} ]; then
-				mv ${Y}.gz files/${Y}.gz
+			# Make sure we got them all, and move them into /files/
+			while read Y; do
+				if ! [ -f ${Y}.gz ]; then
+					echo "failed."
+					return 1
+				fi
+				if [ `gunzip -c < ${Y}.gz |
+					${SHA256} -q` = ${Y} ]; then
+					mv ${Y}.gz files/${Y}.gz
+				else
+					echo "${Y} has incorrect hash."
+					echo "${Y}" >> incorrect-hashes
+				fi
+			done < filelist
+			echo "done."
+			if [ -s incorrect-hashes ]; then
+				echo "Incorrect hashes found, retrying"
+				mv incorrect-hashes filelist
 			else
-				echo "${Y} has incorrect hash."
-				return 1
+				rm filelist
 			fi
-		done < filelist
-		echo "done."
-
+		done
 		# Clean up
-		rm filelist files.wanted
+		rm files.wanted
 	fi
 }
 
@@ -1933,7 +1941,8 @@ fetch_files () {
 		fi
 	done < files.wanted > filelist
 
-	if [ -s filelist ]; then
+	# Keep trying until we're done XXX timf: add a MAX_RETRIES option?
+	while [ -s filelist ]; do
 		echo -n "Fetching `wc -l < filelist | tr -d ' '` "
 		echo ${NDEBUG} "files... "
 		lam -s "${FETCHDIR}/f/" - -s ".gz" < filelist |
@@ -1950,14 +1959,20 @@ fetch_files () {
 				mv ${Y}.gz files/${Y}.gz
 			else
 				echo "${Y} has incorrect hash."
-				return 1
+				echo "${Y}" >> incorrect-hashes
 			fi
 		done < filelist
+		if [ -s incorrect-hashes ]; then
+			echo "Incorrect hashes found. Retrying"
+			mv incorrect-hashes filelist
+		else
+			rm filelist
+		fi
 		echo "done."
-	fi
+	done
 
 	# Clean up
-	rm files.wanted filelist patchlist
+	rm files.wanted patchlist
 }
 
 # Create and populate install manifest directory; and report what updates
